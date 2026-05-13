@@ -1,4 +1,6 @@
-import streamlit as st
+import os
+os.system('pip install edge-tts')
+os.system('pip install streamlit')import streamlit as st
 import edge_tts
 import asyncio
 import os
