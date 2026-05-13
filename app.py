@@ -1,55 +1,66 @@
-import os
-os.system('pip install edge-tts')
-os.system('pip install streamlit')
 import streamlit as st
 import edge_tts
 import asyncio
 import os
 import subprocess
+import time
 
-st.set_page_config(page_title="Hadees Reel Maker", layout="centered")
-st.title("🎥 Classic Hadees Creator")
-
-hook = st.text_input("Top Hook", "The Prophet ﷺ said:")
-hadees_text = st.text_area("Hadees Content", "Enter text...")
-reference = st.text_input("Reference", "Sahih Bukhari")
+# --- Force Install ---
+os.system('pip install edge-tts')
 
 async def generate_reel(h_top, h_main, h_ref):
+    timestamp = int(time.time())
+    audio_path = f"audio_{timestamp}.mp3"
+    video_name = f"reel_{timestamp}.mp4"
+    video_path = os.path.abspath(video_name)
+
     # 1. Generate Voice
     voice = "en-US-ChristopherNeural"
     communicate = edge_tts.Communicate(h_main, voice)
-    await communicate.save("audio.mp3")
+    await communicate.save(audio_path)
 
-    # 2. Text Wrapping for Borders
-    words = h_main.split()
+    # 2. Fix Special Characters for FFmpeg
+    clean_main = h_main.replace("'", "").replace('"', '').replace(":", "")
+    
+    # 3. Smart Word Wrap (Har 6 words baad line break)
+    words = clean_main.split()
     wrapped_text = ""
     for i, word in enumerate(words):
         wrapped_text += word + " "
-        if (i + 1) % 5 == 0: wrapped_text += "\n"
+        if (i + 1) % 6 == 0:
+            wrapped_text += "\n"
 
-    # 3. Direct FFmpeg (No SRT needed - Stable Method)
-    # Using 'drawtext' to avoid file reading errors
+    # 4. FFmpeg Command
     cmd = [
         'ffmpeg', '-y', '-f', 'lavfi', '-i', 'color=c=black:s=1080x1920:d=15',
-        '-i', 'audio.mp3',
-        '-vf', (
-            f"drawbox=x=40:y=40:w=1000:h=1840:color=yellow@0.8:t=10, "
-            f"drawtext=text='{h_top}':fontcolor=yellow:fontsize=50:x=(w-text_w)/2:y=200, "
-            f"drawtext=text='{wrapped_text}':fontcolor=white:fontsize=45:x=(w-text_w)/2:y=(h-text_h)/2:line_spacing=20, "
-            f"drawtext=text='{h_ref}':fontcolor=yellow:fontsize=35:x=(w-text_w)/2:y=h-200"
-        ),
-        '-c:a', 'copy', '-shortest', 'final_reel.mp4'
+        '-i', audio_path,
+        '-vf', f"drawtext=text='{h_top}':fontcolor=yellow:fontsize=50:x=(w-text_w)/2:y=300, "
+               f"drawtext=text='{wrapped_text}':fontcolor=white:fontsize=45:line_spacing=20:x=(w-text_w)/2:y=(h-text_h)/2, "
+               f"drawtext=text='{h_ref}':fontcolor=yellow:fontsize=35:x=(w-text_w)/2:y=h-300",
+        '-c:a', 'aac', '-shortest', video_path
     ]
-    
+
     subprocess.run(cmd)
-    return "final_reel.mp4"
+    return video_path
+
+# --- UI ---
+st.title("🎬 Professional Hadees Reel Maker")
+hook = st.text_input("Top Hook", "The Prophet ﷺ said:")
+hadees_text = st.text_area("Hadees Content", "Enter long hadees here...")
+reference = st.text_input("Reference", "Sahih Bukhari")
 
 if st.button("Generate Professional Reel"):
     if hadees_text:
-        with st.spinner("Processing... Please wait"):
+        with st.spinner("Processing Long Hadees... Please wait 1-2 minutes"):
             try:
-                video_path = asyncio.run(generate_reel(hook, hadees_text, reference))
-                st.video(video_path)
+                final_video = asyncio.run(generate_reel(hook, hadees_text, reference))
+                if os.path.exists(final_video):
+                    st.video(final_video)
+                    with open(final_video, "rb") as f:
+                        st.download_button("Download Reel", f, file_name=f"hadees_{int(time.time())}.mp4")
+                else:
+                    st.error("Video file was not created. Please try a shorter text.")
             except Exception as e:
                 st.error(f"Error: {e}")
-else: st.warning("Please enter Hadees text first!")
+    else:
+        st.warning("Please enter Hadees text first!")
