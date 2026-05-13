@@ -52,5 +52,4 @@ if st.button("Generate Professional Reel"):
                 st.video(video_path)
             except Exception as e:
                 st.error(f"Error: {e}")
-            else:
-            st.warning("Please enter Hadees text first!")
+else: st.warning("Please enter Hadees text first!")
