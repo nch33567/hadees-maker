@@ -48,4 +48,5 @@ if st.button("Generate Professional Reel"):
                 video_path = asyncio.run(generate_reel(hook, hadees_text, reference))
                 st.video(video_path)
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error(f"Error: {e}")else:
+            st.warning("Please enter Hadees text first!")
